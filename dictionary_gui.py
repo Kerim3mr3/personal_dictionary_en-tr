@@ -4,19 +4,45 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QLineEdit, QPushButton, QLabel, QMessageBox,
                             QHBoxLayout, QFrame, QSizePolicy)
 from docx import Document
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont, QIcon
 from docx.shared import RGBColor
-from googletrans import Translator
+from deep_translator import GoogleTranslator
 import asyncio
+import urllib.request
+from functools import lru_cache
+import pandas as pd
+from datetime import datetime
+import os
 
 # Veri tabanı dosyası
 DATABASE_FILE = "sozluk.json"
-WORD_FILE = "sozluk.docx"
+WORD_FILE = "Personal_Dictionary.xlsx"
 
 class DictionaryApp(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        # Önce veritabanını yükle
+        self.excel_file = "Personal_Dictionary.xlsx"
+        self.database = self.load_database()
+        
+        # Sonra UI'ı başlat
+        self.init_ui()
+        
+        # İnternet bağlantısı kontrolü
+        self.internet_available = True
+        self.connection_timer = QTimer()
+        self.connection_timer.timeout.connect(self.check_internet_connection)
+        self.connection_timer.start(30000)
+        
+        # Translator'ı başlat
+        self.translator = GoogleTranslator(source='en', target='tr')
+        
+        # İlk internet kontrolü
+        self.check_internet_connection()
+
+    def init_ui(self):
         self.setWindowTitle("Modern Sözlük Uygulaması")
         
         # İkon ekleme
@@ -232,36 +258,64 @@ class DictionaryApp(QMainWindow):
         bottom_layout = QHBoxLayout()
         
         # Kelime sayısı göstergesi
-        self.word_count_label = QLabel()
+        self.word_count_label = QLabel(self)
         self.word_count_label.setStyleSheet("""
-            color: #7f8c8d;
-            font-size: 12px;
-            padding: 5px;
+            QLabel {
+                color: #2c3e50;
+                font-size: 12px;
+                margin-top: 5px;
+            }
         """)
+        self.update_word_count()  # Kelime sayısını güncelle
+
+        # Github ve Temizle butonları için horizontal layout
+        self.button_layout = QHBoxLayout()
         
-        # GitHub butonu
-        self.github_button = QPushButton("GitHub")
+        # Github butonu
+        self.github_button = QPushButton("Github", self)
+        self.github_button.setFixedSize(100, 30)
+        self.github_button.setCursor(Qt.PointingHandCursor)
         self.github_button.setStyleSheet("""
             QPushButton {
                 background-color: #333;
                 color: white;
                 border: none;
-                border-radius: 5px;
-                font-size: 12px;
                 padding: 5px 10px;
-                max-width: 100px;
+                border-radius: 3px;
             }
             QPushButton:hover {
-                background-color: #2c2c2c;
+                background-color: #444;
             }
         """)
-        self.github_button.setIcon(QIcon('images/github_icon.png'))  # GitHub ikonu ekleyebilirsiniz
         self.github_button.clicked.connect(self.open_github)
         
-        # Layout'a elemanları ekle
-        bottom_layout.addWidget(self.word_count_label)
-        bottom_layout.addStretch()  # Ortada boşluk bırak
-        bottom_layout.addWidget(self.github_button)
+        # Temizle butonu
+        self.clear_button = QPushButton("Sözlüğü Temizle", self)
+        self.clear_button.setFixedSize(100, 30)
+        self.clear_button.setCursor(Qt.PointingHandCursor)
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_dictionary)
+        
+        # Butonları yan yana ekle
+        self.button_layout.addWidget(self.github_button)
+        self.button_layout.addWidget(self.clear_button)
+        self.button_layout.setSpacing(10)
+        self.button_layout.setAlignment(Qt.AlignCenter)
+        
+        # Ana layout'a kelime sayısı ve butonları ekle
+        bottom_layout.addWidget(self.word_count_label, alignment=Qt.AlignCenter)
+        bottom_layout.addLayout(self.button_layout)
         
         # Ana layout'a bottom layout'u ekle
         layout.addLayout(bottom_layout)
@@ -276,25 +330,113 @@ class DictionaryApp(QMainWindow):
         # İptal butonu için bağlantı eklendi
         self.cancel_button.clicked.connect(self.cancel_add)
 
-        # Veritabanını yükle ve kelime sayısını güncelle
-        self.database = self.load_database()
-        self.update_word_count()
-
-        self.translator = Translator()
-        # Event loop oluştur
-        self.loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(self.loop)
-
     def load_database(self):
+        """Excel dosyasından veritabanını yükle"""
         try:
-            with open(DATABASE_FILE, "r", encoding="utf-8") as file:
-                return json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
+            if os.path.exists(self.excel_file):
+                df = pd.read_excel(self.excel_file)
+                return {row['English'].lower(): row['Turkish'] for _, row in df.iterrows()}
+            else:
+                # İlk kez çalıştırılıyorsa boş Excel dosyası oluştur
+                df = pd.DataFrame(columns=['English', 'Turkish', 'Date'])
+                
+                # Excel yazıcı oluştur
+                with pd.ExcelWriter(self.excel_file, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False)
+                    
+                    # Excel çalışma sayfasını al
+                    worksheet = writer.sheets['Sheet1']
+                    
+                    # Başlık satırını sarı yap
+                    from openpyxl.styles import PatternFill
+                    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                    
+                    # Başlıkları formatla
+                    for cell in worksheet[1]:
+                        cell.fill = yellow_fill
+                    
+                    # Sütun genişliklerini ayarla
+                    worksheet.column_dimensions['A'].width = 20
+                    worksheet.column_dimensions['B'].width = 20
+                    worksheet.column_dimensions['C'].width = 15
+                
+                return {}
+        except Exception as e:
+            print(f"Excel okuma hatası: {e}")
             return {}
 
-    def save_database(self):
-        with open(DATABASE_FILE, "w", encoding="utf-8") as file:
-            json.dump(self.database, file, ensure_ascii=False, indent=4)
+    def save_word(self):
+        """Yeni kelimeyi Excel'e kaydet"""
+        try:
+            word = self.word_input.text().strip().lower()
+            meaning = self.meaning_input.text().strip()
+            
+            if not word or not meaning:
+                QMessageBox.warning(self, "Uyarı", "Kelime ve anlamı boş olamaz!")
+                return
+
+            # Mevcut Excel dosyasını oku
+            if os.path.exists(self.excel_file):
+                df = pd.read_excel(self.excel_file)
+            else:
+                df = pd.DataFrame(columns=['English', 'Turkish', 'Date'])
+
+            # Kelime zaten var mı kontrol et
+            if word in df['English'].str.lower().values:
+                QMessageBox.warning(self, "Uyarı", "Bu kelime zaten sözlükte mevcut!")
+                return
+
+            # Yeni satır ekle
+            new_row = {
+                'English': word,
+                'Turkish': meaning,
+                'Date': datetime.now().strftime("%Y-%m-%d")  # Sadece tarih bilgisi
+            }
+            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+            # Excel yazıcı oluştur
+            with pd.ExcelWriter(self.excel_file, engine='openpyxl') as writer:
+                df.to_excel(writer, index=False)
+                
+                # Excel çalışma sayfasını al
+                worksheet = writer.sheets['Sheet1']
+                
+                # Başlık satırını sarı yap
+                from openpyxl.styles import PatternFill, Font
+                yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                red_font = Font(color='FF0000')
+                blue_font = Font(color='0000FF')
+                
+                # Başlıkları formatla
+                for cell in worksheet[1]:
+                    cell.fill = yellow_fill
+                
+                # Sütunları formatla (2. satırdan itibaren)
+                for row in worksheet.iter_rows(min_row=2):
+                    # İngilizce kelimeler kırmızı
+                    row[0].font = red_font
+                    # Türkçe kelimeler mavi
+                    row[1].font = blue_font
+                
+                # Sütun genişliklerini ayarla
+                worksheet.column_dimensions['A'].width = 20
+                worksheet.column_dimensions['B'].width = 20
+                worksheet.column_dimensions['C'].width = 15
+            
+            # RAM'deki sözlüğü güncelle
+            self.database[word] = meaning
+
+            self.result_label.setText(f"'{word}' kelimesi başarıyla kaydedildi!")
+            self.result_label.setStyleSheet("color: #27ae60;")
+            self.word_input.clear()
+            self.meaning_input.clear()
+            self.hide_input_fields()
+
+            # Kelime kaydedildikten sonra sayıyı güncelle
+            self.update_word_count()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Hata", f"Kayıt sırasında hata oluştu: {str(e)}")
 
     def update_word_file(self):
         try:
@@ -323,103 +465,107 @@ class DictionaryApp(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Hata", f"Word dosyası güncellenirken hata oluştu: {e}")
 
+    def check_internet_connection(self):
+        """İnternet bağlantısını kontrol et"""
+        try:
+            urllib.request.urlopen('http://google.com', timeout=1)
+            was_available = self.internet_available
+            self.internet_available = True
+            
+            # Eğer internet yeni bağlandıysa kullanıcıyı bilgilendir
+            if not was_available:
+                self.result_label.setText("İnternet bağlantısı kuruldu!")
+                self.result_label.setStyleSheet("color: #27ae60;")
+        except:
+            was_available = self.internet_available
+            self.internet_available = False
+            
+            # Eğer internet yeni kesildiyse kullanıcıyı bilgilendir
+            if was_available:
+                QMessageBox.warning(
+                    self,
+                    "Bağlantı Hatası",
+                    "İnternet bağlantısı kesildi!\n\n"
+                    "• Çeviri özelliği çalışmayacak\n"
+                    "• Mevcut kelimeler görüntülenebilir\n"
+                    "• Yeni kelime eklemek için internet bağlantısı gerekli",
+                    QMessageBox.Ok
+                )
+
     def search_word(self):
         try:
             word = self.word_input.text().strip().lower()
             if not word:
                 self.result_label.setText("Lütfen bir kelime girin!")
-                self.result_label.setStyleSheet("""
-                    color: #e74c3c;
-                    font-size: 14px;
-                    padding: 20px;
-                    min-height: 150px;
-                    qproperty-alignment: AlignCenter;
-                """)
+                self.result_label.setStyleSheet("color: #e74c3c;")
                 return
 
+            # Veritabanı araması (RAM'den)
             if word in self.database:
-                self.result_label.setText(f"Kelime: {word}\nTürkçe Anlamı: {self.database[word]}")
-                self.result_label.setStyleSheet("""
-                    color: #27ae60;
-                    font-size: 14px;
-                    padding: 20px;
-                    min-height: 150px;
-                    qproperty-alignment: AlignCenter;
-                """)
-                self.meaning_input.setVisible(False)
-                self.add_button.setVisible(False)
-                self.cancel_button.setVisible(False)  # İptal butonu gizlendi
-                self.meaning_label.setVisible(False)
-            else:
-                translated_word = self.translate_word(word)
-                
                 message = (
-                    "Sözlüğünüzde bu yeni kelime yok.\n\n"
+                    f"Bu kelime sözlüğünüzde bulunuyor!\n\n"
+                    f"İngilizce: {word}\n"
+                    f"Türkçe Anlamı: {self.database[word]}"
+                )
+                self.result_label.setText(message)
+                self.result_label.setStyleSheet("color: #27ae60;")  # Yeşil renk
+                self.hide_input_fields()
+                return
+
+            # İnternet bağlantısı kontrolü artık daha hızlı
+            if self.internet_available:
+                translated_word = self.translate_word(word)
+                message = (
+                    "Bu kelime sözlüğünüzde bulunmuyor.\n\n"
                     f"Önerilen Türkçe karşılığı: {translated_word}\n\n"
                     "Kaydetmek isterseniz Türkçe anlamını girin."
                 )
-                
-                self.result_label.setText(message)
-                self.result_label.setStyleSheet("""
-                    color: #e74c3c;
-                    font-size: 14px;
-                    padding: 20px;
-                    line-height: 1.6;
-                    min-height: 150px;
-                    qproperty-alignment: AlignCenter;
-                """)
-                
-                self.meaning_label.setVisible(True)
-                self.meaning_input.setVisible(True)
-                self.meaning_input.setText(translated_word)
-                self.add_button.setVisible(True)
-                self.cancel_button.setVisible(True)  # İptal butonu gösterildi
-                self.meaning_input.setFocus()
+            else:
+                message = (
+                    "Bu kelime sözlüğünüzde bulunmuyor.\n\n"
+                    "Çeviri için internet bağlantısı gerekli.\n"
+                    "Lütfen bağlantınızı kontrol edin."
+                )
+                translated_word = ""
+            
+            self.show_input_fields(message, translated_word)
 
         except Exception as e:
             QMessageBox.critical(self, "Hata", f"Bir hata oluştu: {str(e)}")
 
+    @lru_cache(maxsize=1000)  # Son 1000 çeviriyi önbellekte tut
     def translate_word(self, word):
         """Google Translate API kullanarak çeviri yap"""
         try:
-            # İngilizce'den Türkçe'ye çeviri
-            translation = self.translator.translate(word, src='en', dest='tr')
-            return translation.text
+            if not self.internet_available:
+                return "İnternet bağlantısı yok"
+            
+            translation = self.translator.translate(text=word)
+            return translation
         except Exception as e:
             print(f"Çeviri hatası: {e}")
             return "çeviri yapılamadı"
 
     def add_word(self):
+        """Yeni kelime ekle butonuna tıklandığında"""
         try:
             word = self.word_input.text().strip().lower()
             meaning = self.meaning_input.text().strip()
-
-            if not meaning:
-                self.result_label.setText("Lütfen Türkçe anlamı girin!")
-                self.result_label.setStyleSheet("color: #e74c3c;")
+            
+            if not word or not meaning:
+                QMessageBox.warning(self, "Uyarı", "Kelime ve anlamı boş olamaz!")
                 return
 
-            self.database[word] = meaning
-            self.save_database()
-            self.update_word_file()
-            
-            self.result_label.setText(f"'{word}' kelimesi sözlüğe eklendi.")
-            self.result_label.setStyleSheet("color: #27ae60;")
-            self.word_input.clear()
-            self.meaning_input.clear()
-            self.meaning_input.setVisible(False)
-            self.add_button.setVisible(False)
-            self.meaning_label.setVisible(False)
-            
-            QMessageBox.information(self, "Başarılı", "Kelime başarıyla eklendi ve kaydedildi!")
-            self.update_word_count()
+            # Kelimeyi kaydet
+            self.save_word()
+
         except Exception as e:
-            QMessageBox.critical(self, "Hata", f"Bir hata oluştu: {str(e)}")
+            QMessageBox.critical(self, "Hata", f"Kelime eklenirken hata oluştu: {str(e)}")
 
     def update_word_count(self):
         """Kelime sayısını güncelle"""
         count = len(self.database)
-        self.word_count_label.setText(f"Sözlükte bulunan kelime sayısı: {count}")
+        self.word_count_label.setText(f"Sözlüğünüzde {count} kelime bulunuyor")
 
     def open_dictionary(self):
         """Word dosyasını aç"""
@@ -438,29 +584,104 @@ class DictionaryApp(QMainWindow):
 
     def closeEvent(self, event):
         """Uygulama kapatılırken event loop'u temizle"""
-        self.loop.close()
         super().closeEvent(event)
 
     def cancel_add(self):
-        """İptal butonuna basıldığında çağrılacak metod"""
-        # Alanları temizle ve gizle
-        self.meaning_input.clear()
-        self.meaning_input.setVisible(False)
-        self.meaning_label.setVisible(False)
-        self.add_button.setVisible(False)
-        self.cancel_button.setVisible(False)
-        
-        # Result label'ı temizle
-        self.result_label.clear()
-        
-        # Word input'u temizle ve fokusla
+        """İptal butonuna tıklandığında"""
         self.word_input.clear()
-        self.word_input.setFocus()
+        self.meaning_input.clear()
+        self.hide_input_fields()
+        self.result_label.clear()
 
     def open_github(self):
         """GitHub sayfasını aç"""
         import webbrowser
         webbrowser.open('https://github.com/Kerim3mr3/personal_dictionary_en-tr')
+
+    def hide_input_fields(self):
+        """Input alanlarını gizle"""
+        self.meaning_input.setVisible(False)
+        self.add_button.setVisible(False)
+        self.cancel_button.setVisible(False)
+        self.meaning_label.setVisible(False)
+
+    def show_input_fields(self, message, translated_word=""):
+        """Input alanlarını göster"""
+        self.result_label.setText(message)
+        self.result_label.setStyleSheet("color: #e74c3c;")
+        self.meaning_label.setVisible(True)
+        self.meaning_input.setVisible(True)
+        self.meaning_input.setText(translated_word)
+        self.add_button.setVisible(True)
+        self.cancel_button.setVisible(True)
+        self.meaning_input.setFocus()
+
+    def clear_dictionary(self):
+        """Sözlüğü temizle"""
+        reply = QMessageBox.question(
+            self,
+            'Sözlüğü Temizle',
+            'Tüm sözlük verileri silinecek. Bu işlem geri alınamaz!\n\nDevam etmek istediğinize emin misiniz?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No  # Varsayılan seçenek No
+        )
+
+        if reply == QMessageBox.Yes:
+            try:
+                # Boş DataFrame oluştur
+                df = pd.DataFrame(columns=['English', 'Turkish', 'Date'])
+                
+                # Excel yazıcı oluştur
+                with pd.ExcelWriter(self.excel_file, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False)
+                    
+                    # Excel çalışma sayfasını al
+                    worksheet = writer.sheets['Sheet1']
+                    
+                    # Başlık satırını sarı yap
+                    from openpyxl.styles import PatternFill
+                    yellow_fill = PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid')
+                    
+                    # Başlıkları formatla
+                    for cell in worksheet[1]:
+                        cell.fill = yellow_fill
+                    
+                    # Sütun genişliklerini ayarla
+                    worksheet.column_dimensions['A'].width = 20
+                    worksheet.column_dimensions['B'].width = 20
+                    worksheet.column_dimensions['C'].width = 15
+
+                # RAM'deki sözlüğü temizle
+                self.database.clear()
+                
+                # Input alanlarını temizle
+                self.word_input.clear()
+                self.meaning_input.clear()
+                self.result_label.clear()
+                self.hide_input_fields()
+                
+                # Başarı mesajı göster
+                QMessageBox.information(
+                    self,
+                    "Başarılı",
+                    "Sözlük başarıyla temizlendi!",
+                    QMessageBox.Ok
+                )
+                
+                # Sonuç etiketini güncelle
+                self.result_label.setText("Sözlük temizlendi!")
+                self.result_label.setStyleSheet("color: #27ae60;")
+
+                # Sözlük temizlendikten sonra sayıyı güncelle
+                self.update_word_count()
+
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Hata",
+                    f"Sözlük temizlenirken bir hata oluştu:\n{str(e)}",
+                    QMessageBox.Ok
+                )
 
 def main():
     app = QApplication(sys.argv)
