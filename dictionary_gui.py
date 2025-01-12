@@ -13,6 +13,7 @@ import pandas as pd
 from datetime import datetime
 import os
 from openpyxl.styles import PatternFill,Font
+
 # Veri tabanı dosyası
 DATABASE_FILE = "sozluk.json"
 WORD_FILE = "Personal_Dictionary.xlsx"
@@ -504,28 +505,10 @@ class DictionaryApp(QMainWindow):
         """İnternet bağlantısını kontrol et"""
         try:
             urllib.request.urlopen('http://google.com', timeout=1)
-            was_available = self.internet_available
             self.internet_available = True
-            
-            # Eğer internet yeni bağlandıysa kullanıcıyı bilgilendir
-            if not was_available:
-                self.result_label.setText("İnternet bağlantısı kuruldu!")
-                self.result_label.setStyleSheet("color: #27ae60;")
         except:
-            was_available = self.internet_available
             self.internet_available = False
-            
-            # Eğer internet yeni kesildiyse kullanıcıyı bilgilendir
-            if was_available:
-                QMessageBox.warning(
-                    self,
-                    "Bağlantı Hatası",
-                    "İnternet bağlantısı kesildi!\n\n"
-                    "• Çeviri özelliği çalışmayacak\n"
-                    "• Mevcut kelimeler görüntülenebilir\n"
-                    "• Yeni kelime eklemek için internet bağlantısı gerekli",
-                    QMessageBox.Ok
-                )
+            self.handle_connection_loss()  # Bağlantı kaybı durumunu yönet
 
     def search_word(self):
         try:
