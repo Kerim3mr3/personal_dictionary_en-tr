@@ -20,7 +20,7 @@ class DictionaryApp(QMainWindow):
         self.setWindowTitle("Modern Sözlük Uygulaması")
         
         # İkon ekleme
-        self.setWindowIcon(QIcon('dictionary_icon.ico'))
+        self.setWindowIcon(QIcon('images/dictionary_icon.ico'))
         
         self.setGeometry(100, 100, 1024, 900)
         self.setMinimumSize(1024, 900)
@@ -255,7 +255,7 @@ class DictionaryApp(QMainWindow):
                 background-color: #2c2c2c;
             }
         """)
-        self.github_button.setIcon(QIcon('github_icon.png'))  # GitHub ikonu ekleyebilirsiniz
+        self.github_button.setIcon(QIcon('images/github_icon.png'))  # GitHub ikonu ekleyebilirsiniz
         self.github_button.clicked.connect(self.open_github)
         
         # Layout'a elemanları ekle

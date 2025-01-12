@@ -1,7 +1,7 @@
 # Modern Dictionary App 📚
 
 <div align="center">
-  <img src="dictionary_icon.png" alt="Dictionary Icon" width="150"/>
+  <img src="images/dic_ico.png" alt="Dictionary Icon" width="150"/>
   <br>
   <p>
     <strong>Modern ve Kullanıcı Dostu İngilizce-Türkçe Sözlük Uygulaması</strong>
@@ -19,8 +19,8 @@
 ## 🖼️ Ekran Görüntüleri
 
 <div align="center">
-  <img src="screenshots/app_main.png" alt="Ana Ekran" width="400"/>
-  <img src="screenshots/app_search.png" alt="Arama Sonucu" width="400"/>
+  <img src="images/ana_sayfa.png" alt="Ana Ekran" width="400"/>
+  <img src="images/aratma_ekrani.png" alt="Arama Sonucu" width="400"/>
 </div>
 
 ## 🚀 Kurulum
