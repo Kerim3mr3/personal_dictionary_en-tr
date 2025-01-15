@@ -29,6 +29,9 @@ background_color = "#9fb6cd"  # Arka plan rengi değişkeni
 class DictionaryApp(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        self.setMinimumSize(600, 480)  # Minimum boyut
+        self.setMaximumSize(900, 720)  # Maksimum boyut
         
         # Önce veritabanını yükle
         self.excel_file = "Personal_Dictionary.xlsx"
@@ -55,33 +58,24 @@ class DictionaryApp(QMainWindow):
         # İkon ekleme
         self.setWindowIcon(QIcon('images/dictionary_icon.ico'))
         
-        self.setGeometry(100, 100, 1024, 935)
-        self.setMinimumSize(1024, 935)
-        
         # Ana widget ve layout
         main_widget = QWidget()
-        main_widget.setStyleSheet(f"background-color: {background_color};")  # Arka plan rengi ayarlandı
+        main_widget.setStyleSheet(f"background-color: {background_color};")
         self.setCentralWidget(main_widget)
         layout = QVBoxLayout()
-        layout.setSpacing(30)
-        layout.setContentsMargins(50, 30, 50, 30)
+        layout.setSpacing(10)  # Daha az boşluk
+        layout.setContentsMargins(10, 10, 10, 10)  # Kenar boşlukları
         main_widget.setLayout(layout)
 
         # Başlık
-
-        title_color = "#3498db"  # Başlık rengi değişkeni
         title = QLabel("Modern Sözlük")
-        title.setFont(QFont("Arial", 32, QFont.Bold))
+        title.setFont(QFont("Arial", 28, QFont.Bold))  # Font boyutu artırıldı
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet(f"""
-            color: {title_color};  # Başlık rengi
-            margin-bottom: 20px;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);  # Gölge efekti
-            border: 2px solid {title_color};  # Kenarlık eklendi
-            border-radius: 10px;  # Kenar yuvarlama
-            padding: 15px;  # İç boşluk
-            background-color: rgba(255, 255, 255, 0.9);  # Arka plan rengi
-            font-weight: bold;  # Kalın yazı
+            color: {title_color};  /* Yazı rengi */
+            margin-bottom: 10px;  /* Alt boşluk */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;  /* Modern yazı tipi */
+            font-weight: bold;  /* Kalın yazı tipi */
         """)
         layout.addWidget(title)
 
@@ -89,189 +83,181 @@ class DictionaryApp(QMainWindow):
         input_card = QFrame()
         input_card.setStyleSheet(f"""
             QFrame {{
-                background-color: {input_card_color};  /* Değişken kullanımı */
-                border-radius: 15px;
-                padding: 30px;
+                background-color: {input_card_color};  /* Arka plan rengi */
+                border-radius: 15px;  /* Kenar yuvarlama */
+                padding: 20px;  /* İç boşluk */
+                border: 1px solid #ccc;  /* Kenar rengi */
             }}
         """)
-        input_card.setMinimumHeight(350)
-        
+        input_card.setMinimumHeight(250)  # Kart yüksekliği
         input_layout = QVBoxLayout()
-        input_layout.setSpacing(20)
-        input_layout.setContentsMargins(30, 20, 30, 20)
+        input_layout.setSpacing(8)  # Daha az boşluk
+        input_layout.setContentsMargins(10, 10, 10, 10)  # Kenar boşlukları
         input_card.setLayout(input_layout)
 
         # İngilizce kelime bölümü
         eng_label = QLabel("İngilizce Kelime")
-        eng_label.setFont(QFont("Arial", 12))
-        eng_label.setStyleSheet("color: #2c3e50; padding: 5px;")
+        eng_label.setFont(QFont("Arial", 10, QFont.Bold))  # Font boyutu ve kalınlık ayarlandı
+        eng_label.setStyleSheet(f"color: {font_color}; padding: 3px;")
         input_layout.addWidget(eng_label)
-        
+
         self.word_input = QLineEdit()
         self.word_input.setPlaceholderText("Aramak istediğiniz kelimeyi girin...")
-        self.word_input.setMinimumHeight(40)
-        self.word_input.setStyleSheet("""
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-                color: #2c3e50;
-            }
-            QLineEdit:focus {
-                border: 2px solid #3498db;
-            }
+        self.word_input.setMinimumHeight(30)  # Yüksekliği artırdık
+        self.word_input.setStyleSheet(f"""
+            QLineEdit {{
+                padding: 10px;  /* İç boşluk */
+                font-size: 12px;  /* Font boyutu */
+                font-weight: bold;  /* Kalın yazı tipi */
+                color: {font_color};  /* Yazı rengi */
+                background-color: #f5f5f5;  /* Arka plan rengi */
+                border: 2px solid #3498db;  /* Kenar rengi */
+                border-radius: 5px;  /* Kenar yuvarlama */
+            }}
+            QLineEdit:focus {{
+                border: 2px solid #2980b9;  /* Odaklandığında kenar rengi */
+            }}
+            QLineEdit::placeholder {{
+                color: #bdc3c7;  /* Yer tutucu yazı rengi */
+            }}
         """)
         input_layout.addWidget(self.word_input)
 
         # Türkçe anlam bölümü
         self.meaning_label = QLabel("Türkçe Anlam")
-        self.meaning_label.setFont(QFont("Arial", 12))
-        self.meaning_label.setStyleSheet("color: #2c3e50; padding: 5px;")
+        self.meaning_label.setFont(QFont("Arial", 10, QFont.Bold))  # Font boyutu küçültüldü
+        self.meaning_label.setStyleSheet(f"color: {font_color}; padding: 3px;")
         input_layout.addWidget(self.meaning_label)
-        
+
         self.meaning_input = QLineEdit()
         self.meaning_input.setPlaceholderText("Türkçe anlamını girin...")
-        self.meaning_input.setMinimumHeight(40)
-        self.meaning_input.setStyleSheet("""
-            QLineEdit {
-                padding: 10px;
-                border: 2px solid #bdc3c7;
-                border-radius: 5px;
-                font-size: 14px;
-                color: #2c3e50;
-            }
-            QLineEdit:focus {
-                border: 2px solid #3498db;
-            }
+        self.meaning_input.setMinimumHeight(30)  # Yüksekliği artırdık
+        self.meaning_input.setStyleSheet(f"""
+            QLineEdit {{
+                padding: 10px;  /* İç boşluk */
+                font-size: 12px;  /* Font boyutu */
+                font-weight: bold;  /* Kalın yazı tipi */
+                color: {font_color};  /* Yazı rengi */
+                background-color: #f5f5f5;  /* Arka plan rengi */
+                border: 2px solid #3498db;  /* Kenar rengi */
+                border-radius: 5px;  /* Kenar yuvarlama */
+            }}
+            QLineEdit:focus {{
+                border: 2px solid #2980b9;  /* Odaklandığında kenar rengi */
+            }}
+            QLineEdit::placeholder {{
+                color: #bdc3c7;  /* Yer tutucu yazı rengi */
+            }}
         """)
         input_layout.addWidget(self.meaning_input)
-        
-        self.meaning_label.setVisible(False)
-        self.meaning_input.setVisible(False)
 
         # Butonlar için yatay layout
         button_layout = QHBoxLayout()
-        button_layout.setSpacing(20)
-        button_layout.setContentsMargins(0, 20, 0, 0)
-        
+        button_layout.setSpacing(8)  # Daha az boşluk
+        button_layout.setContentsMargins(0, 5, 0, 0)
+
         # Ara butonu
         self.search_button = QPushButton("Ara")
-        self.search_button.setMinimumSize(150, 45)
+        self.search_button.setMinimumSize(80, 25)  # Daha küçük buton boyutu
         self.search_button.setStyleSheet("""
             QPushButton {
                 background-color: #3498db;
                 color: white;
                 border: none;
                 border-radius: 5px;
-                font-size: 14px;
+                font-size: 11px;
                 font-weight: bold;
-                padding: 10px 20px;
+                padding: 5px;
             }
             QPushButton:hover {
                 background-color: #2980b9;
             }
+            QPushButton:pressed {
+                background-color: #1c598a;
+            }
         """)
-        
+        button_layout.addWidget(self.search_button)
+
         # Ekle butonu
         self.add_button = QPushButton("Ekle")
-        self.add_button.setMinimumSize(150, 45)
+        self.add_button.setMinimumSize(80, 25)  # Daha küçük buton boyutu
         self.add_button.setStyleSheet("""
             QPushButton {
-                background-color: #27ae60;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 10px 20px;
+                background-color: #27ae60;  /* Yeşil arka plan rengi */
+                color: white;  /* Yazı rengi */
+                border: none;  /* Kenar çizgisi yok */
+                border-radius: 5px;  /* Kenar yuvarlama */
+                font-size: 11px;  /* Font boyutu */
+                font-weight: bold;  /* Font kalınlığı */
+                padding: 5px 10px;  /* İç boşluk */
             }
             QPushButton:hover {
-                background-color: #219a52;
+                background-color: #219a52;  /* Hover durumunda arka plan rengi */
             }
         """)
-        self.add_button.setVisible(False)
+        button_layout.addWidget(self.add_button)
 
-        # İptal butonu eklendi
-        self.cancel_button = QPushButton("İptal")
-        self.cancel_button.setMinimumSize(150, 45)
-        self.cancel_button.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 10px 20px;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """)
-        self.cancel_button.setVisible(False)
-
-        # Sözlük Görüntüle butonu
+        # View Dictionary butonu
         self.view_dict_button = QPushButton("Sözlüğü Görüntüle")
-        self.view_dict_button.setMinimumSize(150, 45)
+        self.view_dict_button.setMinimumSize(80, 25)  # Daha küçük buton boyutu
         self.view_dict_button.setStyleSheet("""
             QPushButton {
-                background-color: #9b59b6;
-                color: white;
-                border: none;
-                border-radius: 5px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 10px 20px;
+                background-color: #8e44ad;  /* Mor arka plan rengi */
+                color: white;  /* Yazı rengi */
+                border: none;  /* Kenar çizgisi yok */
+                border-radius: 5px;  /* Kenar yuvarlama */
+                font-size: 11px;  /* Font boyutu */
+                padding: 5px;  /* İç boşluk */
             }
             QPushButton:hover {
-                background-color: #8e44ad;
+                background-color: #732d91;  /* Hover durumunda arka plan rengi */
             }
         """)
-
-        button_layout.addStretch()
-        button_layout.addWidget(self.search_button)
-        button_layout.addWidget(self.add_button)
-        button_layout.addWidget(self.cancel_button)  # İptal butonu eklendi
         button_layout.addWidget(self.view_dict_button)
-        button_layout.addStretch()
+
+        # İptal butonu
+        self.cancel_button = QPushButton("İptal")
+        self.cancel_button.setMinimumSize(80, 25)  # Daha küçük buton boyutu
+        self.cancel_button.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;  /* Kırmızı arka plan rengi */
+                color: white;  /* Yazı rengi */
+                border: none;  /* Kenar çizgisi yok */
+                border-radius: 5px;  /* Kenar yuvarlama */
+                font-size: 11px;  /* Font boyutu */
+                padding: 5px;  /* İç boşluk */
+            }
+            QPushButton:hover {
+                background-color: #c0392b;  /* Hover durumunda arka plan rengi */
+            }
+        """)
+        button_layout.addWidget(self.cancel_button)
 
         input_layout.addLayout(button_layout)
         layout.addWidget(input_card)
 
-        # Sonuç kartı
-        result_card = QFrame()
-        result_card.setStyleSheet(f"""
+        # Sonuç bölümü
+        self.result_card = QFrame()
+        self.result_card.setStyleSheet(f"""
             QFrame {{
-                background-color: {result_card_color};
-                border-radius: 15px;
-                padding: 30px;
-                margin-top: 20px;
+                background-color: {input_card_color};
+                border-radius: 10px;
+                padding: 15px;  # İç boşluk
             }}
         """)
-        result_card.setMinimumHeight(250)
-        
-        result_layout = QVBoxLayout()
-        result_layout.setContentsMargins(20, 15, 20, 15)
-        result_layout.setSpacing(15)
-        result_card.setLayout(result_layout)
+        self.result_layout = QVBoxLayout()
+        self.result_layout.setSpacing(8)  # Daha az boşluk
+        self.result_layout.setContentsMargins(10, 10, 10, 10)  # Kenar boşlukları
+        self.result_card.setLayout(self.result_layout)
 
-        self.result_label = QLabel("")
+        self.result_label = QLabel("")  # Sonuç etiketini tanımlayın
         self.result_label.setAlignment(Qt.AlignCenter)
-        self.result_label.setFont(QFont("Arial", 14))
-        self.result_label.setWordWrap(True)
-        self.result_label.setMinimumHeight(150)
-        self.result_label.setStyleSheet("""
-            QLabel {
-                color: #e74c3c;
-                font-size: 14px;
-                padding: 20px;
-                line-height: 1.6;
-                qproperty-alignment: AlignCenter;
-            }
-        """)
-        result_layout.addWidget(self.result_label)
-        layout.addWidget(result_card)
+        self.result_label.setFont(QFont("Arial", 10))  # Font boyutu ayarlandı
+        self.result_label.setWordWrap(True)  # Satır sarmayı etkinleştir
+        self.result_label.setStyleSheet(f"color: {font_color}; padding: 5px;")  # Stil ayarlandı
+        self.result_layout.addWidget(self.result_label)
+
+        layout.addWidget(self.result_card)
 
         # Alt kısım için yatay layout
         bottom_layout = QHBoxLayout()
@@ -388,9 +374,13 @@ class DictionaryApp(QMainWindow):
                     worksheet.column_dimensions['B'].width = 20
                     worksheet.column_dimensions['C'].width = 15
                 
+                # Kullanıcıya bilgi ver
+                QMessageBox.information(self, "Bilgi", "Excel dosyası oluşturuldu. Lütfen uygulamayı tekrar başlatın.", QMessageBox.Ok)
+                
                 return {}
         except Exception as e:
             print(f"Excel okuma hatası: {e}")
+            QMessageBox.critical(self, "Hata", f"Excel dosyası yüklenirken hata oluştu: {e}", QMessageBox.Ok)
             return {}
 
     def save_word(self):
@@ -463,7 +453,7 @@ class DictionaryApp(QMainWindow):
             self.database[word] = meaning
     
             self.result_label.setText(f"'{word}' kelimesi başarıyla kaydedildi!")
-            self.result_label.setStyleSheet("color: #27ae60;")
+            self.result_label.setStyleSheet("color: green;")
             self.word_input.clear()
             self.meaning_input.clear()
             self.hide_input_fields()
